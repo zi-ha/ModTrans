@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
+    #[serde(default)]
     pub default_output_dir: String,
     pub api_configs: Vec<crate::commands::translator::ApiConfig>,
     pub active_api_index: usize,

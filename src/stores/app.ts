@@ -4,22 +4,10 @@ import type { ModLangFile, ApiConfig, PackMeta, AppSettings, LangEntry } from '.
 
 export type StepKey = 'import' | 'translate' | 'review' | 'generate';
 
-const stepPathMap: Record<StepKey, string> = {
-  import: '/import',
-  translate: '/translate',
-  review: '/review',
-  generate: '/generate',
-};
-
 export function getNextStep(current: StepKey): StepKey | null {
   const order: StepKey[] = ['import', 'translate', 'review', 'generate'];
   const idx = order.indexOf(current);
   return idx < order.length - 1 ? order[idx + 1] : null;
-}
-
-export function getNextStepPath(current: StepKey): string | null {
-  const next = getNextStep(current);
-  return next ? stepPathMap[next] : null;
 }
 
 export const useAppStore = defineStore('app', () => {
@@ -35,7 +23,6 @@ export const useAppStore = defineStore('app', () => {
     mc_version: '1.20',
     universal: false,
   });
-  const defaultOutputDir = ref('');
   const history = ref<AppSettings['history']>([]);
   const isTranslating = ref(false);
   const translateProgress = ref({ current: 0, total: 0 });
@@ -72,13 +59,13 @@ export const useAppStore = defineStore('app', () => {
     return true;
   }
 
-  function completeStep(step: StepKey): string | null {
+  function completeStep(step: StepKey): StepKey | null {
     stepStatus.value[step] = 'completed';
     const next = getNextStep(step);
     if (next) {
       if (stepStatus.value[next] === 'pending') stepStatus.value[next] = 'active';
       currentStep.value = next;
-      return stepPathMap[next];
+      return next;
     }
     return null;
   }
@@ -124,7 +111,7 @@ export const useAppStore = defineStore('app', () => {
 
   return {
     currentFiles, editedEntries, apiConfigs, activeApiIndex,
-    packMeta, defaultOutputDir, history, isTranslating, translateProgress,
+    packMeta, history, isTranslating, translateProgress,
     steps, currentStep, stepStatus, totalEntries, translatedCount,
     reviewedCount, allTranslated,
     canAccess, completeStep, setCurrentStep, setFiles,

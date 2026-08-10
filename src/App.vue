@@ -1,85 +1,43 @@
 <script setup lang="ts">
-import { useRouter, useRoute } from 'vue-router';
-import { useAppStore } from './stores/app';
-import type { StepKey } from './stores/app';
+import { useRoute } from 'vue-router';
 
-const router = useRouter();
 const route = useRoute();
-const store = useAppStore();
-
-const translateSteps: { key: StepKey; label: string }[] = [
-  { key: 'import', label: '导入' },
-  { key: 'translate', label: '翻译' },
-  { key: 'review', label: '校正' },
-  { key: 'generate', label: '生成' },
-];
-
-function goStep(step: StepKey) {
-  if (store.canAccess(step)) {
-    router.push(`/${step}`);
-  }
-}
-
-function getStepClass(step: StepKey) {
-  const status = store.stepStatus[step];
-  if (step === store.currentStep) return 'step-active';
-  if (status === 'completed') return 'step-done';
-  return 'step-pending';
-}
-
-function getStepSymbol(step: StepKey) {
-  const status = store.stepStatus[step];
-  if (step === store.currentStep) return '●';
-  if (status === 'completed') return '✓';
-  return '○';
-}
 </script>
 
 <template>
   <div class="app-shell">
-    <header class="topbar">
-      <div class="topbar-brand">ModTrans 模组译途</div>
-      <div class="topbar-right">
-        <router-link to="/settings" class="topbar-settings" :class="{ active: route.path === '/settings' }">
-          设置
+    <aside class="sidebar">
+      <nav class="sidebar-nav">
+        <router-link to="/workspace" class="sidebar-item" :class="{ active: route.path === '/workspace' }">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+          <span>工作台</span>
+        </router-link>
+        <router-link to="/merge" class="sidebar-item" :class="{ active: route.path === '/merge' }">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 21 7 12 12 3 7 12 2"/>
+            <polygon points="12 12 21 17 12 22 3 17 12 12"/>
+          </svg>
+          <span>合并</span>
+        </router-link>
+      </nav>
+      <div class="sidebar-footer">
+        <router-link to="/settings" class="sidebar-item" :class="{ active: route.path === '/settings' }">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span>设置</span>
         </router-link>
       </div>
-    </header>
-    <div class="app-body">
-      <aside class="sidebar">
-        <nav class="sidebar-nav">
-          <div class="nav-section">
-            <div class="nav-section-title">翻译</div>
-            <div class="nav-steps">
-              <button
-                v-for="s in translateSteps"
-                :key="s.key"
-                class="nav-step"
-                :class="getStepClass(s.key)"
-                @click="goStep(s.key)"
-              >
-                <span class="step-mark">{{ getStepSymbol(s.key) }}</span>
-                <span class="step-label">{{ s.label }}</span>
-              </button>
-            </div>
-          </div>
-          <div class="nav-section">
-            <div class="nav-section-title">合并</div>
-            <button
-              class="nav-step"
-              :class="{ 'step-active': route.path === '/merge' }"
-              @click="router.push('/merge')"
-            >
-              <span class="step-mark">{{ route.path === '/merge' ? '●' : '○' }}</span>
-              <span class="step-label">合并</span>
-            </button>
-          </div>
-        </nav>
-      </aside>
-      <main class="workspace">
-        <router-view />
-      </main>
-    </div>
+    </aside>
+    <main class="workspace">
+      <router-view />
+    </main>
   </div>
 </template>
 
@@ -100,136 +58,65 @@ body {
 
 .app-shell {
   display: flex;
-  flex-direction: column;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
 }
 
-.topbar {
-  height: 44px;
-  background: #FFFFFF;
-  border-bottom: 1px solid #EAECEF;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  flex-shrink: 0;
-  -webkit-app-region: drag;
-}
-
-.topbar-brand {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1F2937;
-  letter-spacing: 0.5px;
-}
-
-.topbar-right {
-  -webkit-app-region: no-drag;
-}
-
-.topbar-settings {
-  text-decoration: none;
-  color: #6B7280;
-  font-size: 13px;
-  padding: 4px 12px;
-  border-radius: 5px;
-  transition: all 0.15s;
-}
-
-.topbar-settings:hover,
-.topbar-settings.active {
-  background: #EFF6FF;
-  color: #2563EB;
-}
-
-.app-body {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
+/* 侧边栏 */
 .sidebar {
-  width: 240px;
+  width: 134px;
   background: #FFFFFF;
   border-right: 1px solid #EAECEF;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 10px;
   flex-shrink: 0;
-  overflow-y: auto;
-  padding: 12px 0;
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 2px;
 }
 
-.nav-section {
-  padding: 0 8px;
-}
-
-.nav-section-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: #9CA3AF;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 0 14px 6px;
-}
-
-.nav-steps {
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid #F3F4F6;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
-.nav-step {
+.sidebar-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px 14px;
-  border: none;
-  background: transparent;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  text-decoration: none;
   color: #6B7280;
   font-size: 13px;
-  cursor: pointer;
-  border-radius: 5px;
-  text-align: left;
-  transition: all 0.12s;
+  transition: all 0.15s;
+  user-select: none;
 }
 
-.nav-step:hover {
-  background: #F3F4F6;
-}
-
-.step-mark {
-  font-size: 11px;
-  width: 16px;
-  text-align: center;
+.sidebar-item svg {
+  width: 17px;
+  height: 17px;
   flex-shrink: 0;
 }
 
-.step-label {
-  white-space: nowrap;
+.sidebar-item:hover {
+  background: #F3F4F6;
+  color: #374151;
 }
 
-.step-active {
-  color: #2563EB;
+.sidebar-item.active {
   background: #EFF6FF;
-}
-
-.step-active:hover {
-  background: #DBEAFE;
-}
-
-.step-done {
-  color: #16A34A;
-}
-
-.step-done:hover {
-  background: #F0FDF4;
+  color: #2563EB;
+  font-weight: 500;
 }
 
 .workspace {

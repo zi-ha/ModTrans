@@ -39,7 +39,6 @@ export interface HistoryRecord {
 }
 
 export interface AppSettings {
-  default_output_dir: string;
   api_configs: ApiConfig[];
   active_api_index: number;
   custom_prompt: string;

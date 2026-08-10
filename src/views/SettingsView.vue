@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
+import { showToast } from '../utils/toast';
 import type { ApiConfig } from '../types';
 
 const apiConfigs = ref<ApiConfig[]>([]);
 const activeIndex = ref(0);
-const defaultOutputDir = ref('');
 const history = ref<any[]>([]);
 const terms = ref<Record<string, string>>({});
 const newTermKey = ref('');
@@ -14,21 +13,15 @@ const newTermValue = ref('');
 const activeSection = ref('api');
 const testMessage = ref('');
 const testing = ref(false);
-
-const providerPresets: Record<string, { url: string; model: string }> = {
-  openai: { url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini' },
-  deepseek: { url: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat' },
-  zhipu: { url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', model: 'glm-4-flash' },
-  qwen: { url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen-plus' },
-};
+const presets = ref<ApiConfig[]>([]);
 
 watch(
   () => apiConfigs.value[activeIndex.value]?.provider,
   (newProvider) => {
     if (!newProvider || !apiConfigs.value[activeIndex.value]) return;
-    const preset = providerPresets[newProvider];
-    if (preset && apiConfigs.value[activeIndex.value].api_url !== preset.url) {
-      apiConfigs.value[activeIndex.value].api_url = preset.url;
+    const preset = presets.value.find(p => p.provider === newProvider);
+    if (preset && apiConfigs.value[activeIndex.value].api_url !== preset.api_url) {
+      apiConfigs.value[activeIndex.value].api_url = preset.api_url;
       apiConfigs.value[activeIndex.value].model = preset.model;
     }
   }
@@ -37,9 +30,9 @@ watch(
 watch(activeIndex, () => {
   const current = apiConfigs.value[activeIndex.value];
   if (!current) return;
-  const preset = providerPresets[current.provider];
+  const preset = presets.value.find(p => p.provider === current.provider);
   if (preset && !current.api_url) {
-    current.api_url = preset.url;
+    current.api_url = preset.api_url;
     current.model = preset.model;
   }
 });
@@ -49,11 +42,13 @@ async function loadAll() {
     const s = await invoke<any>('get_settings');
     apiConfigs.value = s.api_configs || [];
     activeIndex.value = s.active_api_index ?? 0;
-    defaultOutputDir.value = s.default_output_dir || '';
     history.value = s.history || [];
   } catch (e) { /* ignore */ }
   try {
     terms.value = await invoke<Record<string, string>>('get_terms');
+  } catch (e) { /* ignore */ }
+  try {
+    presets.value = await invoke<ApiConfig[]>('get_provider_presets');
   } catch (e) { /* ignore */ }
 }
 
@@ -61,7 +56,6 @@ async function saveSettings() {
   try {
     await invoke('set_settings', {
       settings: {
-        default_output_dir: defaultOutputDir.value,
         api_configs: apiConfigs.value,
         active_api_index: activeIndex.value,
         custom_prompt: apiConfigs.value[activeIndex.value]?.custom_prompt || '',
@@ -69,13 +63,9 @@ async function saveSettings() {
       },
     });
     testMessage.value = '';
-    const el = document.createElement('div');
-    el.style.cssText = 'position:fixed;top:20px;right:20px;background:#16A34A;color:#fff;padding:10px 20px;border-radius:6px;z-index:9999;font-size:14px;';
-    el.textContent = '设置已保存';
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 2000);
+    showToast('设置已保存');
   } catch (e: any) {
-    alert(`保存失败: ${e}`);
+    showToast(`保存失败: ${e}`, 'error');
   }
 }
 
@@ -104,14 +94,14 @@ async function testConnection() {
 }
 
 function addApiConfig() {
-  const preset = providerPresets['openai'];
+  const preset = presets.value.find(p => p.provider === 'openai') || presets.value[0];
   apiConfigs.value.push({
     name: '新配置',
-    provider: 'openai',
-    api_url: preset.url,
+    provider: preset?.provider || 'openai',
+    api_url: preset?.api_url || '',
     api_key: '',
-    model: preset.model,
-    custom_prompt: '你是一名 Minecraft 模组翻译专家。请将以下英文游戏文本翻译成简体中文，使用 Minecraft 官方中文译名。严格按照JSON格式返回，key保持不变，value为翻译结果。',
+    model: preset?.model || '',
+    custom_prompt: '',
   });
   activeIndex.value = apiConfigs.value.length - 1;
 }
@@ -125,12 +115,8 @@ function removeApiConfig(index: number) {
 async function saveTerms() {
   try {
     await invoke('set_terms', { terms: terms.value });
-    const el = document.createElement('div');
-    el.style.cssText = 'position:fixed;top:20px;right:20px;background:#16A34A;color:#fff;padding:10px 20px;border-radius:6px;z-index:9999;font-size:14px;';
-    el.textContent = '词库已保存';
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 2000);
-  } catch (e: any) { alert(`保存失败: ${e}`); }
+    showToast('词库已保存');
+  } catch (e: any) { showToast(`保存失败: ${e}`, 'error'); }
 }
 
 function addTerm() {
@@ -142,24 +128,16 @@ function addTerm() {
 
 function removeTerm(key: string) { delete terms.value[key]; }
 
-async function browseOutputDir() {
-  const selected = await open({ directory: true, multiple: false });
-  if (selected) defaultOutputDir.value = selected as string;
-}
-
 onMounted(loadAll);
 </script>
 
 <template>
   <div>
-    <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #1F2937;">设置</h2>
-
     <div class="tab-bar">
       <button v-for="s in [
         { key: 'api', label: 'AI 服务' },
         { key: 'terms', label: '术语库' },
         { key: 'history', label: '历史' },
-        { key: 'general', label: '文件' },
       ]" :key="s.key" class="tab-item" :class="{ active: activeSection === s.key }" @click="activeSection = s.key">{{ s.label }}</button>
     </div>
 
@@ -220,7 +198,7 @@ onMounted(loadAll);
             </div>
           </div>
           <div style="margin-top: 14px;">
-            <label class="form-label">自定义系统提示词（高级）</label>
+            <label class="form-label">自定义翻译提示词（可选，留空使用内置默认提示词）</label>
             <textarea v-model="apiConfigs[activeIndex].custom_prompt" class="textarea" style="min-height: 120px;"></textarea>
           </div>
         </div>
@@ -272,22 +250,6 @@ onMounted(loadAll);
             </tr>
           </tbody>
         </table>
-      </div>
-    </div>
-
-    <div v-if="activeSection === 'general'">
-      <div class="card">
-        <div class="card-title">文件</div>
-        <div class="form-row">
-          <div class="form-col">
-            <label class="form-label">默认输出目录</label>
-            <div style="display: flex; gap: 8px;">
-              <input v-model="defaultOutputDir" class="input" placeholder="留空使用默认目录" />
-              <button class="btn btn-secondary" style="white-space: nowrap;" @click="browseOutputDir">浏览</button>
-            </div>
-          </div>
-        </div>
-        <div style="margin-top: 12px; text-align: right;"><button class="btn btn-primary" @click="saveSettings">保存设置</button></div>
       </div>
     </div>
   </div>

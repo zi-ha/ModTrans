@@ -13,8 +13,10 @@
     "windows": [
       {
         "title": "ModTrans - MC模组翻译工具",
-        "width": 1280,
-        "height": 800,
+        "width": 800,
+        "height": 500,
+        "minWidth": 800,
+        "minHeight": 500,
         "resizable": true,
         "fullscreen": false
       }

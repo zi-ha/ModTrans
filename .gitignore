@@ -30,10 +30,5 @@ Thumbs.db
 # Cargo lock for libs (keep for apps)
 # Cargo.lock
 
-# Tauri
-src-tauri/icons/*.png
-src-tauri/icons/*.icns
-src-tauri/icons/*.ico
-
 # Test coverage
 coverage/

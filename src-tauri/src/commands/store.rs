@@ -7,6 +7,8 @@ use std::path::PathBuf;
 pub struct AppSettings {
     #[serde(default)]
     pub default_output_dir: String,
+    #[serde(default)]
+    pub translation_rules: Vec<String>,
     pub api_configs: Vec<crate::commands::translator::ApiConfig>,
     pub active_api_index: usize,
     pub custom_prompt: String,
@@ -25,6 +27,7 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             default_output_dir: String::new(),
+            translation_rules: vec!["keep_vars".to_string(), "keep_format_codes".to_string()],
             api_configs: vec![crate::commands::translator::ApiConfig::default()],
             active_api_index: 0,
             custom_prompt: crate::commands::translator::ApiConfig::default().custom_prompt,

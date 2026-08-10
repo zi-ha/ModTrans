@@ -4,8 +4,8 @@ import MergeView from '../views/MergeView.vue';
 import SettingsView from '../views/SettingsView.vue';
 
 const routes = [
-  { path: '/', redirect: '/workspace' },
-  { path: '/workspace', name: 'workspace', component: WorkspaceView },
+  { path: '/', redirect: '/translate' },
+  { path: '/translate', name: 'translate', component: WorkspaceView },
   { path: '/merge', name: 'merge', component: MergeView },
   { path: '/settings', name: 'settings', component: SettingsView },
 ];

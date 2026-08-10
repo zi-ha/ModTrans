@@ -189,8 +189,11 @@ fn extract_mod_id_from_jar_name(jar_path: &str) -> String {
 
 fn parse_json_lang(content: &[u8], mod_id: &str) -> Result<Vec<LangEntry>, String> {
     let text = String::from_utf8_lossy(content);
+    // 很多模组的语言文件末尾条目带多余逗号(trailing comma),标准 JSON 不允许,
+    // 先做容错清理再解析
+    let cleaned = strip_trailing_commas(&text);
     let map: HashMap<String, String> =
-        serde_json::from_str(&text).map_err(|e| format!("JSON解析错误: {}", e))?;
+        serde_json::from_str(&cleaned).map_err(|e| format!("JSON解析错误: {}", e))?;
 
     let mut entries = Vec::new();
     for (key, value) in map {
@@ -206,6 +209,61 @@ fn parse_json_lang(content: &[u8], mod_id: &str) -> Result<Vec<LangEntry>, Strin
         });
     }
     Ok(entries)
+}
+
+/// 移除 JSON 中 `}` / `]` 前的多余逗号,支持字符串内的逗号与转义字符
+fn strip_trailing_commas(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars();
+    let mut in_string = false;
+    let mut prev_was_comma = false;
+
+    while let Some(c) = chars.next() {
+        if in_string {
+            out.push(c);
+            if c == '\\' {
+                if let Some(next) = chars.next() {
+                    out.push(next);
+                }
+            } else if c == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match c {
+            '"' => {
+                in_string = true;
+                prev_was_comma = false;
+                out.push(c);
+            }
+            ',' => {
+                prev_was_comma = true;
+                out.push(c);
+            }
+            '}' | ']' => {
+                if prev_was_comma {
+                    // 删除尾部(跳过空白)的逗号,如 "key":"value",\n}
+                    let mut idx = out.len();
+                    while idx > 0 && out.as_bytes()[idx - 1].is_ascii_whitespace() {
+                        idx -= 1;
+                    }
+                    if idx > 0 && out.as_bytes()[idx - 1] == b',' {
+                        out.remove(idx - 1);
+                    }
+                }
+                prev_was_comma = false;
+                out.push(c);
+            }
+            c if c.is_whitespace() => {
+                out.push(c);
+            }
+            _ => {
+                prev_was_comma = false;
+                out.push(c);
+            }
+        }
+    }
+    out
 }
 
 fn parse_legacy_lang(content: &[u8], mod_id: &str) -> Result<Vec<LangEntry>, String> {
@@ -280,5 +338,53 @@ pub fn serialize_lang_file(format: &LangFormat, entries: &[LangEntry]) -> Result
             }
             Ok(lines.join("\n"))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strips_trailing_commas_basic() {
+        let cases = [
+            ("{\"a\":\"b\",}", "{\"a\":\"b\"}"),
+            ("{\"a\":\"b\",\n}", "{\"a\":\"b\"\n}"),
+            ("{\"a\":\"b\", \"c\":\"d\",}", "{\"a\":\"b\", \"c\":\"d\"}"),
+            ("{\"a\":\"b\",\n  \"c\":\"d\",\n}", "{\"a\":\"b\",\n  \"c\":\"d\"\n}"),
+            ("{\"a\":[1,2,3,],}", "{\"a\":[1,2,3]}"),
+            ("{\"a\":\"b\",}", "{\"a\":\"b\"}"),
+        ];
+        for (input, expected) in cases {
+            assert_eq!(strip_trailing_commas(input), expected, "input: {}", input);
+        }
+    }
+
+    #[test]
+    fn keeps_commas_inside_strings() {
+        let input = "{\"desc\":\"Stone, Iron, and Gold\",\"a\":\"b\",}";
+        let expected = "{\"desc\":\"Stone, Iron, and Gold\",\"a\":\"b\"}";
+        assert_eq!(strip_trailing_commas(input), expected);
+    }
+
+    #[test]
+    fn keeps_escaped_quotes_inside_strings() {
+        let input = "{\"a\":\"say \\\"hello\\\"\",\"b\":\"c\",}";
+        let expected = "{\"a\":\"say \\\"hello\\\"\",\"b\":\"c\"}";
+        assert_eq!(strip_trailing_commas(input), expected);
+    }
+
+    #[test]
+    fn valid_json_is_untouched() {
+        let input = "{\"a\":\"b\",\"c\":\"d\"}";
+        assert_eq!(strip_trailing_commas(input), input);
+    }
+
+    #[test]
+    fn parses_lang_with_trailing_comma() {
+        let content = b"{\n  \"item.diamond\":\"Diamond\",\n  \"item.stone\":\"Stone\",\n}";
+        let entries = parse_json_lang(content, "testmod").unwrap();
+        assert_eq!(entries.len(), 2);
+        assert!(entries.iter().any(|e| e.key == "item.diamond"));
     }
 }

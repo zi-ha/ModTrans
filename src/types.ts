@@ -43,6 +43,7 @@ export interface AppSettings {
   active_api_index: number;
   custom_prompt: string;
   history: HistoryRecord[];
+  translation_rules: string[];
 }
 
 export interface TranslateResult {

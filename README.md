@@ -1,4 +1,4 @@
-# ModTrans - MC 模组译途
+# ModTrans
 
 桌面端 Minecraft 模组翻译工具，支持 Jar 导入、AI 翻译、一键生成汉化资源包。
 
